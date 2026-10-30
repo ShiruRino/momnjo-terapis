@@ -6,6 +6,7 @@ import '../../widgets/app_text_field.dart';
 import '../../widgets/feedback_banner.dart';
 import '../../widgets/custom_dialogs.dart';
 import '../../state/app_state.dart';
+import '../../data/api/api_exception.dart';
 import '../shell/main_navigation_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,31 +17,33 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _usernameController = TextEditingController(text: 'siti.therapis');
-  final TextEditingController _passwordController = TextEditingController(text: 'password123');
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   String? _usernameError;
   String? _passwordError;
   String? _globalErrorBanner;
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   void _handleLogin() async {
     setState(() {
       _usernameError = null;
       _passwordError = null;
       _globalErrorBanner = null;
-      _isLoading = true;
     });
-
-    await Future.delayed(const Duration(milliseconds: 400));
 
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
-    // Check empty validation (HTTP 422 simulation)
     if (username.isEmpty && password.isEmpty) {
       setState(() {
-        _isLoading = false;
         _usernameError = 'Username wajib diisi';
         _passwordError = 'Password wajib diisi';
         _globalErrorBanner = 'Username dan password wajib diisi';
@@ -48,39 +51,47 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     } else if (username.isEmpty) {
       setState(() {
-        _isLoading = false;
         _usernameError = 'Username wajib diisi';
       });
       return;
     } else if (password.isEmpty) {
       setState(() {
-        _isLoading = false;
         _passwordError = 'Password wajib diisi';
       });
       return;
     }
 
-    // Check simulated credentials
-    if (username == 'blocked') {
-      setState(() => _isLoading = false);
-      _triggerBlockedAccountModal();
-      return;
-    } else if (password == 'wrong') {
-      setState(() {
-        _isLoading = false;
-        _passwordController.clear();
-        _globalErrorBanner = 'Username atau password salah';
-      });
-      return;
-    }
+    setState(() => _isLoading = true);
 
-    setState(() => _isLoading = false);
-    AppState.instance.login(username: username, password: password);
-
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainNavigationShell()),
-      );
+    try {
+      await AppState.instance.login(username: username, password: password);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MainNavigationShell()),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (e.statusCode == 403 || e.message.toLowerCase().contains('blokir')) {
+            _triggerBlockedAccountModal();
+          } else if (e.statusCode == 401) {
+            _passwordController.clear();
+            _globalErrorBanner = e.message;
+          } else {
+            _globalErrorBanner = e.message;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _globalErrorBanner = 'Terjadi kesalahan jaringan. Silakan coba lagi.';
+        });
+      }
     }
   }
 
@@ -191,13 +202,14 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Global Error Banner (401 / 422)
+              // Global Error Banner (401 / 422 / 500)
               if (_globalErrorBanner != null) ...[
                 FeedbackBanner(
                   message: _globalErrorBanner!,
                   type: FeedbackBannerType.danger,
                   onDismiss: () => setState(() => _globalErrorBanner = null),
                 ),
+                const SizedBox(height: 14),
               ],
 
               // Form fields
@@ -225,76 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 isLoading: _isLoading,
                 onPressed: _handleLogin,
               ),
-              const SizedBox(height: 20),
-
-              // Quick State Presets for testing
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceSubtle,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.surfaceBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Simulator Status Respons Backend:',
-                      style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        ActionChip(
-                          label: const Text('Normal (200)', style: TextStyle(fontSize: 11)),
-                          backgroundColor: Colors.white,
-                          onPressed: () {
-                            setState(() {
-                              _usernameController.text = 'siti.therapis';
-                              _passwordController.text = 'password123';
-                              _usernameError = null;
-                              _passwordError = null;
-                              _globalErrorBanner = null;
-                            });
-                          },
-                        ),
-                        ActionChip(
-                          label: const Text('Empty Form (422)', style: TextStyle(fontSize: 11)),
-                          backgroundColor: Colors.white,
-                          onPressed: () {
-                            setState(() {
-                              _usernameController.clear();
-                              _passwordController.clear();
-                              _usernameError = 'Username wajib diisi';
-                              _passwordError = 'Password wajib diisi';
-                              _globalErrorBanner = 'Username dan password wajib diisi';
-                            });
-                          },
-                        ),
-                        ActionChip(
-                          label: const Text('Wrong Creds (401)', style: TextStyle(fontSize: 11)),
-                          backgroundColor: Colors.white,
-                          onPressed: () {
-                            setState(() {
-                              _passwordController.clear();
-                              _usernameError = null;
-                              _passwordError = null;
-                              _globalErrorBanner = 'Username atau password salah';
-                            });
-                          },
-                        ),
-                        ActionChip(
-                          label: const Text('Blocked (403)', style: TextStyle(fontSize: 11)),
-                          backgroundColor: Colors.white,
-                          onPressed: _triggerBlockedAccountModal,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -302,4 +245,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

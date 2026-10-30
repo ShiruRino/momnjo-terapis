@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../state/app_state.dart';
 import '../../../widgets/app_button.dart';
 
 class FilterPeriodSheet extends StatefulWidget {
@@ -53,14 +54,7 @@ class _FilterPeriodSheetState extends State<FilterPeriodSheet> {
   late DateTime _startDate;
   late DateTime _endDate;
   String _selectedGerai = 'Semua Gerai';
-
-  final List<String> _geraiOptions = const [
-    'Semua Gerai',
-    'Momnjo Dharmawangsa',
-    'Momnjo Gading Serpong',
-    'Momnjo Green Lake',
-    'Momnjo Kelapa Gading',
-  ];
+  late final List<String> _geraiOptions;
 
   @override
   void initState() {
@@ -68,6 +62,18 @@ class _FilterPeriodSheetState extends State<FilterPeriodSheet> {
     _startDate = widget.initialStart;
     _endDate = widget.initialEnd;
     _selectedGerai = widget.initialGerai ?? 'Semua Gerai';
+
+    final options = <String>{'Semua Gerai'};
+    for (final g in AppState.instance.geraiList) {
+      if (g.namaGerai.isNotEmpty) options.add(g.namaGerai);
+    }
+    if (AppState.instance.user.namaGerai.isNotEmpty) {
+      options.add(AppState.instance.user.namaGerai);
+    }
+    if (_selectedGerai.isNotEmpty) {
+      options.add(_selectedGerai);
+    }
+    _geraiOptions = options.toList();
   }
 
   Future<void> _selectDate(bool isStart) async {

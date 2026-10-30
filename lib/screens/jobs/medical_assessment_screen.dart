@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../data/models/job_model.dart';
+import '../../data/api/api_exception.dart';
 import '../../state/app_state.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_button.dart';
@@ -17,9 +19,9 @@ class MedicalAssessmentScreen extends StatefulWidget {
 }
 
 class _MedicalAssessmentScreenState extends State<MedicalAssessmentScreen> {
-  final TextEditingController _sistolikController = TextEditingController(text: '120');
-  final TextEditingController _diastolikController = TextEditingController(text: '80');
-  final TextEditingController _suhuController = TextEditingController(text: '36.5');
+  final TextEditingController _sistolikController = TextEditingController();
+  final TextEditingController _diastolikController = TextEditingController();
+  final TextEditingController _suhuController = TextEditingController();
   final TextEditingController _keluhanController = TextEditingController();
   final TextEditingController _alergiController = TextEditingController();
   final TextEditingController _catatanKhususController = TextEditingController();
@@ -42,7 +44,6 @@ class _MedicalAssessmentScreenState extends State<MedicalAssessmentScreen> {
 
   void _handleSave() async {
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 300));
 
     final record = MedicalRecord(
       tekananDarahSistolik: _sistolikController.text.trim(),
@@ -53,17 +54,38 @@ class _MedicalAssessmentScreenState extends State<MedicalAssessmentScreen> {
       catatanKhusus: _catatanKhususController.text.trim(),
     );
 
-    AppState.instance.saveMedicalAssessment(widget.jobId, record);
-    setState(() => _isLoading = false);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Rekam medis berhasil disimpan.'),
-          backgroundColor: AppColors.feedbackSuccess,
-        ),
-      );
-      Navigator.pop(context);
+    try {
+      await AppState.instance.saveMedicalAssessment(widget.jobId, record);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Rekam medis berhasil disimpan.'),
+            backgroundColor: AppColors.feedbackSuccess,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: AppColors.feedbackDanger,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan rekam medis: $e'),
+            backgroundColor: AppColors.feedbackDanger,
+          ),
+        );
+      }
     }
   }
 
@@ -88,20 +110,35 @@ class _MedicalAssessmentScreenState extends State<MedicalAssessmentScreen> {
             const SizedBox(height: 12),
 
             // 1. Tekanan Darah (Sistolik / Diastolik mmHg)
+            Text(
+              'Tekanan Darah',
+              style: AppTypography.supportMedium.copyWith(
+                color: AppColors.inkStrong,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: AppTextField(
-                    label: 'Tekanan Darah',
+                    label: '',
                     hintText: '120',
                     controller: _sistolikController,
                     keyboardType: TextInputType.number,
                   ),
                 ),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 38),
-                  child: Text('/', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.inkMuted)),
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    '/',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.inkMuted,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: AppTextField(

@@ -82,11 +82,13 @@ class TreatmentTimerWidget extends StatelessWidget {
                         color: isPaused ? AppColors.brand700 : AppColors.inkStrong,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'dari $durasiMenit menit',
-                      style: AppTypography.caption.copyWith(color: AppColors.inkMuted),
-                    ),
+                    if (durasiMenit > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'dari $durasiMenit menit',
+                        style: AppTypography.caption.copyWith(color: AppColors.inkMuted),
+                      ),
+                    ],
                   ],
                 ),
               ],

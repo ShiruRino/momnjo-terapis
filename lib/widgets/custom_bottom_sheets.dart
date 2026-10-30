@@ -164,6 +164,7 @@ class CustomBottomSheets {
     required String treatmentName,
     required bool isOnsite,
     required int totalDurationSeconds,
+    int? durasiMenit,
     required VoidCallback onConfirm,
   }) {
     final noteController = TextEditingController();
@@ -237,7 +238,7 @@ class CustomBottomSheets {
                           Text(treatmentName, style: AppTypography.caption),
                           const SizedBox(height: 4),
                           Text(
-                            isOnsite ? 'Onsite • 60 menit' : 'Homecare • 90 menit',
+                            '${isOnsite ? "Onsite" : "Homecare"}${durasiMenit != null && durasiMenit > 0 ? " • $durasiMenit menit" : ""}',
                             style: AppTypography.caption.copyWith(color: AppColors.inkMuted),
                           ),
                         ],

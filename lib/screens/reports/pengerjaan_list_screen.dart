@@ -6,10 +6,44 @@ import '../../state/app_state.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/feedback_banner.dart';
+import '../../widgets/empty_state_view.dart';
+import '../../widgets/skeleton_view.dart';
 import 'modals/redeem_detail_modal.dart';
 
-class PengerjaanListScreen extends StatelessWidget {
+class PengerjaanListScreen extends StatefulWidget {
   const PengerjaanListScreen({super.key});
+
+  @override
+  State<PengerjaanListScreen> createState() => _PengerjaanListScreenState();
+}
+
+class _PengerjaanListScreenState extends State<PengerjaanListScreen> {
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AppState.instance.addListener(_onStateChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    AppState.instance.removeListener(_onStateChange);
+    super.dispose();
+  }
+
+  void _onStateChange() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    await AppState.instance.fetchPengerjaan();
+    if (mounted) setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,130 +56,148 @@ class PengerjaanListScreen extends StatelessWidget {
       backgroundColor: AppColors.surfaceCanvas,
       appBar: const AppHeader(
         title: 'Rincian Pengerjaan',
-        subtitle: 'Oktober 2026',
+        subtitle: 'Daftar treatment & layanan',
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Stats Row
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    icon: Icons.receipt_long_outlined,
-                    iconColor: AppColors.brand500,
-                    label: 'Total Pengerjaan',
-                    value: Formatters.formatRupiah(totalNominal),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildStatCard(
-                    icon: Icons.format_list_bulleted,
-                    iconColor: AppColors.feedbackInfo,
-                    label: 'Jumlah Treatment',
-                    value: '${items.length}',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildStatCard(
-                    icon: Icons.inventory_2_outlined,
-                    iconColor: const Color(0xFFC9600E),
-                    label: 'Total Qty',
-                    value: '$totalQty',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Items List
-            ...items.map((item) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.surfaceBorder),
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => RedeemDetailModal.show(context, item),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.inkMuted),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    Formatters.formatDate(item.tanggal),
-                                    style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted),
-                                  ),
-                                ],
+      body: _isLoading || state.isLoadingReport
+          ? const SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: ListTileSkeletonView(itemCount: 4),
+            )
+          : items.isEmpty
+              ? EmptyStateView(
+                  title: 'Belum Ada Data',
+                  description: 'Tidak ada rincian pengerjaan untuk periode ini.',
+                  buttonText: 'Segarkan',
+                  onButtonPressed: _loadData,
+                  icon: Icons.receipt_long_outlined,
+                )
+              : RefreshIndicator(
+                  color: AppColors.brand500,
+                  onRefresh: _loadData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top Stats Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                icon: Icons.receipt_long_outlined,
+                                iconColor: AppColors.brand500,
+                                label: 'Total Pengerjaan',
+                                value: Formatters.formatRupiah(totalNominal),
                               ),
-                              StatusChip.treatmentType(type: item.kategoriTipe),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              const Icon(Icons.person_outline, size: 16, color: AppColors.brand500),
-                              const SizedBox(width: 6),
-                              Text(item.customerName, style: AppTypography.supportBold),
-                              const Spacer(),
-                              const Icon(Icons.chevron_right, size: 18, color: AppColors.inkLight),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Icon(Icons.spa_outlined, size: 14, color: AppColors.brand500),
-                              const SizedBox(width: 6),
-                              Text(item.productName, style: AppTypography.caption.copyWith(color: AppColors.inkMuted)),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          const Divider(height: 1),
-                          const SizedBox(height: 8),
-                          _row('No. Transaksi', item.noTransaksi),
-                          _row('Jumlah', '${item.jumlah}'),
-                          _row('Nominal per item', Formatters.formatRupiah(item.nominalPerItem)),
-                          _row('Total Nominal', Formatters.formatRupiah(item.totalNominal), isBold: true),
-                          if (item.isRedeem) ...[
-                            const SizedBox(height: 8),
-                            _row('Nama Paket', item.namaPaket ?? 'Paket Sehat Cantik 4 Sesi'),
-                            _row('Dijual oleh', item.dijualOleh ?? 'Dewi Sartika'),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                icon: Icons.format_list_bulleted,
+                                iconColor: AppColors.feedbackInfo,
+                                label: 'Jumlah Treatment',
+                                value: '${items.length}',
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                icon: Icons.inventory_2_outlined,
+                                iconColor: const Color(0xFFC9600E),
+                                label: 'Total Qty',
+                                value: '$totalQty',
+                              ),
+                            ),
                           ],
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Items List
+                        ...items.map((item) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.surfaceBorder),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () => RedeemDetailModal.show(context, item),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.inkMuted),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                Formatters.formatDate(item.tanggal),
+                                                style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted),
+                                              ),
+                                            ],
+                                          ),
+                                          StatusChip.treatmentType(type: item.kategoriTipe),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.person_outline, size: 16, color: AppColors.brand500),
+                                          const SizedBox(width: 6),
+                                          Text(item.customerName, style: AppTypography.supportBold),
+                                          const Spacer(),
+                                          const Icon(Icons.chevron_right, size: 18, color: AppColors.inkLight),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.spa_outlined, size: 14, color: AppColors.brand500),
+                                          const SizedBox(width: 6),
+                                          Text(item.productName, style: AppTypography.caption.copyWith(color: AppColors.inkMuted)),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      const Divider(height: 1),
+                                      const SizedBox(height: 8),
+                                      _row('No. Transaksi', item.noTransaksi),
+                                      _row('Jumlah', '${item.jumlah}'),
+                                      _row('Nominal per item', Formatters.formatRupiah(item.nominalPerItem)),
+                                      _row('Total Nominal', Formatters.formatRupiah(item.totalNominal), isBold: true),
+                                      if (item.isRedeem) ...[
+                                        const SizedBox(height: 8),
+                                        _row('Nama Paket', item.namaPaket ?? 'Paket Sehat Cantik 4 Sesi'),
+                                        _row('Dijual oleh', item.dijualOleh ?? 'Dewi Sartika'),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 8),
+
+                        // Callout info
+                        const FeedbackBanner(
+                          message: 'Nominal redeem mengikuti perhitungan paket.',
+                          type: FeedbackBannerType.info,
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
                   ),
                 ),
-              );
-            }),
-            const SizedBox(height: 8),
-
-            // Callout info
-            const FeedbackBanner(
-              message: 'Nominal redeem mengikuti perhitungan paket.',
-              type: FeedbackBannerType.info,
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
     );
   }
 

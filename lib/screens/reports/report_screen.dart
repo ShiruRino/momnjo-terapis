@@ -19,15 +19,22 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  bool _isLoadingSkeleton = false;
-  bool _isEmptyState = false;
   String? _bannerMessage;
-  FeedbackBannerType _bannerType = FeedbackBannerType.danger;
+  final FeedbackBannerType _bannerType = FeedbackBannerType.danger;
 
   @override
   void initState() {
     super.initState();
     AppState.instance.addListener(_onStateChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (AppState.instance.isLoggedIn) {
+        AppState.instance.setReportFilters(
+          startDate: AppState.instance.reportStartDate,
+          endDate: AppState.instance.reportEndDate,
+          gerai: AppState.instance.selectedGeraiFilter,
+        );
+      }
+    });
   }
 
   @override
@@ -78,97 +85,59 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
         ],
       ),
-      body: _isLoadingSkeleton
-          ? const SingleChildScrollView(child: ReportSkeletonView())
-          : _isEmptyState
-              ? EmptyStateView(
-                  title: 'Belum Ada Data',
-                  description: 'Tidak ada laporan untuk periode yang dipilih.',
-                  buttonText: 'Ubah Periode',
-                  onButtonPressed: _openFilterSheet,
-                  icon: Icons.receipt_long_outlined,
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Filter Bar
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: InkWell(
-                              onTap: _openFilterSheet,
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.surfaceBorder),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.inkMuted),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        '1 - 31 Oktober 2026',
-                                        style: AppTypography.captionBold.copyWith(color: AppColors.inkStrong),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.inkMuted),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 2,
-                            child: InkWell(
-                              onTap: _openFilterSheet,
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: AppColors.surfaceBorder),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.storefront_outlined, size: 14, color: AppColors.inkMuted),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        state.selectedGeraiFilter ?? 'Semua Gerai',
-                                        style: AppTypography.captionBold.copyWith(color: AppColors.inkStrong),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.inkMuted),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
+      body: RefreshIndicator(
+        color: AppColors.brand500,
+        onRefresh: () async {
+          await state.setReportFilters(
+            startDate: state.reportStartDate,
+            endDate: state.reportEndDate,
+            gerai: state.selectedGeraiFilter,
+          );
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Dynamic Filter Bar
+              _buildFilterBar(state),
+              const SizedBox(height: 14),
 
-                      // Optional Alert banner
-                      if (_bannerMessage != null) ...[
-                        FeedbackBanner(
-                          message: _bannerMessage!,
-                          type: _bannerType,
-                          onDismiss: () => setState(() => _bannerMessage = null),
-                        ),
-                      ],
+              // API Report Error banner if any
+              if (state.reportError != null) ...[
+                FeedbackBanner(
+                  message: state.reportError!,
+                  type: FeedbackBannerType.danger,
+                ),
+                const SizedBox(height: 10),
+              ],
 
-                      // Card: Total Komisi 5% (Brand Gradient)
+              // Optional Alert banner
+              if (_bannerMessage != null) ...[
+                FeedbackBanner(
+                  message: _bannerMessage!,
+                  type: _bannerType,
+                  onDismiss: () => setState(() => _bannerMessage = null),
+                ),
+                const SizedBox(height: 10),
+              ],
+
+              if (state.isLoadingReport) ...[
+                const ReportSkeletonView(),
+              ] else if (summary.totalTreatment == 0 && summary.totalKomisi5Persen == 0) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 24),
+                  child: EmptyStateView(
+                    title: 'Belum Ada Data',
+                    description: 'Tidak ada laporan untuk periode yang dipilih.',
+                    buttonText: 'Ubah Periode',
+                    onButtonPressed: _openFilterSheet,
+                    icon: Icons.receipt_long_outlined,
+                  ),
+                ),
+              ] else ...[
+                // Card: Total Komisi 5% (Brand Gradient)
                       Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
@@ -501,67 +470,91 @@ class _ReportScreenState extends State<ReportScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-
-                      // Simulator Toggles for Testing Design References
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceSubtle,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.surfaceBorder),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Simulator State Laporan (Board 04 Presentasi):',
-                              style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              children: [
-                                ActionChip(
-                                  label: Text(_isEmptyState ? 'Data Normal' : 'Laporan Kosong', style: const TextStyle(fontSize: 11)),
-                                  backgroundColor: Colors.white,
-                                  onPressed: () => setState(() => _isEmptyState = !_isEmptyState),
-                                ),
-                                ActionChip(
-                                  label: Text(_isLoadingSkeleton ? 'Stop Skeleton' : 'Loading Skeleton', style: const TextStyle(fontSize: 11)),
-                                  backgroundColor: Colors.white,
-                                  onPressed: () => setState(() => _isLoadingSkeleton = !_isLoadingSkeleton),
-                                ),
-                                ActionChip(
-                                  label: const Text('Error Banner', style: TextStyle(fontSize: 11)),
-                                  backgroundColor: Colors.white,
-                                  onPressed: () {
-                                    setState(() {
-                                      _bannerMessage = 'Gagal memuat data laporan. Silakan periksa koneksi internet Anda.';
-                                      _bannerType = FeedbackBannerType.danger;
-                                    });
-                                  },
-                                ),
-                                ActionChip(
-                                  label: const Text('Warning Banner', style: TextStyle(fontSize: 11)),
-                                  backgroundColor: Colors.white,
-                                  onPressed: () {
-                                    setState(() {
-                                      _bannerMessage = 'Tidak ada data untuk periode ini. Coba ubah rentang tanggal atau gerai.';
-                                      _bannerType = FeedbackBannerType.warning;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
                       const SizedBox(height: 40),
                     ],
-                  ),
+                  ],
                 ),
+              ),
+            ),
+          );
+  }
+
+  Widget _buildFilterBar(AppState state) {
+    String dateRangeText;
+    final start = state.reportStartDate;
+    final end = state.reportEndDate;
+    if (start.month == end.month && start.year == end.year) {
+      if (start.day == 1 && end.day == DateTime(end.year, end.month + 1, 0).day) {
+        dateRangeText = Formatters.formatMonthYear(start);
+      } else {
+        dateRangeText = '${start.day} - ${end.day} ${Formatters.formatMonthYear(start)}';
+      }
+    } else {
+      dateRangeText = '${Formatters.formatDate(start)} - ${Formatters.formatDate(end)}';
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: InkWell(
+            onTap: _openFilterSheet,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.surfaceBorder),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.inkMuted),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      dateRangeText,
+                      style: AppTypography.captionBold.copyWith(color: AppColors.inkStrong),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.inkMuted),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 2,
+          child: InkWell(
+            onTap: _openFilterSheet,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.surfaceBorder),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.storefront_outlined, size: 14, color: AppColors.inkMuted),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      state.selectedGeraiFilter ?? 'Semua Gerai',
+                      style: AppTypography.captionBold.copyWith(color: AppColors.inkStrong),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Icon(Icons.keyboard_arrow_down, size: 16, color: AppColors.inkMuted),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../data/api/api_exception.dart';
 import '../../state/app_state.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_button.dart';
@@ -40,9 +41,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _initialNickname = user.nickname;
     _initialEmail = user.email;
     _initialPhone = user.noTelp;
-    _initialAddress = user.address.isNotEmpty
-        ? user.address
-        : 'Jl. Melati No. 12, Kebayoran Baru, Jakarta Selatan';
+    _initialAddress = user.address;
 
     _namaLengkapController = TextEditingController(text: _initialNama);
     _nicknameController = TextEditingController(text: _initialNickname);
@@ -82,27 +81,50 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 400));
 
-    AppState.instance.updateProfile(
-      namaLengkap: _namaLengkapController.text.trim(),
-      nickname: _nicknameController.text.trim(),
-      email: email,
-      noTelp: phone,
-      address: _addressController.text.trim(),
-    );
+    try {
+      await AppState.instance.updateProfile(
+        namaLengkap: _namaLengkapController.text.trim(),
+        nickname: _nicknameController.text.trim(),
+        email: email,
+        noTelp: phone,
+        address: _addressController.text.trim(),
+      );
 
-    setState(() {
-      _isLoading = false;
-      _initialNama = _namaLengkapController.text.trim();
-      _initialNickname = _nicknameController.text.trim();
-      _initialEmail = email;
-      _initialPhone = phone;
-      _initialAddress = _addressController.text.trim();
-    });
-
-    if (mounted) {
-      CustomBottomSheets.showEditProfileSuccessSheet(context);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _initialNama = _namaLengkapController.text.trim();
+          _initialNickname = _nicknameController.text.trim();
+          _initialEmail = email;
+          _initialPhone = phone;
+          _initialAddress = _addressController.text.trim();
+        });
+        await CustomBottomSheets.showEditProfileSuccessSheet(context);
+        if (mounted) Navigator.pop(context);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (e.message.toLowerCase().contains('email')) {
+            _emailError = e.message;
+          } else if (e.message.toLowerCase().contains('telepon') || e.message.toLowerCase().contains('telp')) {
+            _phoneError = e.message;
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(e.message), backgroundColor: AppColors.feedbackDanger),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Terjadi kesalahan: $e'), backgroundColor: AppColors.feedbackDanger),
+        );
+      }
     }
   }
 
@@ -296,53 +318,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 24),
-
-            // Simulator for Quick Validation Testing
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSubtle,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.surfaceBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Simulator Validasi Input (Board 03 & 05):',
-                    style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      ActionChip(
-                        label: const Text('Invalid Email (422)', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () {
-                          setState(() {
-                            _emailController.text = 'siti@momnjo';
-                            _emailError = 'Format email tidak valid.';
-                          });
-                        },
-                      ),
-                      ActionChip(
-                        label: const Text('Invalid Phone (422)', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () {
-                          setState(() {
-                            _phoneController.text = '08123abc';
-                            _phoneError = 'Nomor telepon hanya boleh berisi angka.';
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 32),
           ],

@@ -584,12 +584,32 @@ Mengembalikan 1 objek detail job lengkap beserta data rekam medis terakhir.
 ---
 
 #### 8.1. Action: `arrived` (Tiba di Lokasi - Khusus Homecare)
+> [!IMPORTANT]
+> **Field `foto_arrived` WAJIB (Required)** diunggah sebagai bukti otentik bahwa terapis telah tiba di lokasi pelanggan. Server secara otomatis memproses dan menyimpan file foto ke dalam direktori project server (`uploads/arrived/`).
+
+Dapat dikirim menggunakan format **JSON (Base64)** atau **Multipart Form-Data (`multipart/form-data`)**:
+
+##### Opsi A: Request JSON Body (Base64 Data URL)
 ```json
 {
   "id_job_status": 45,
   "action": "arrived",
-  "catatan": "Sudah tiba di lobby apartemen"
+  "foto_arrived": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBD...",
+  "catatan": "Sudah tiba di lobby apartemen, bersiap naik ke unit"
 }
+```
+
+##### Opsi B: Request Multipart Form-Data
+```http
+POST /jobs.php
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: multipart/form-data
+
+Fields:
+- action: arrived
+- id_job_status: 45
+- foto_arrived: [File Binary Image: .jpg / .jpeg / .png / .webp]
+- catatan: Sudah tiba di lokasi (opsional)
 ```
 
 #### Response Sukses (HTTP 200)
@@ -601,7 +621,9 @@ Mengembalikan 1 objek detail job lengkap beserta data rekam medis terakhir.
     "status": "success",
     "message": "Berhasil memperbarui status: Tiba di Lokasi.",
     "status_layanan": "Arrived",
-    "waktu_arrived": "2026-10-30 09:15:00"
+    "waktu_arrived": "2026-10-30 09:15:00",
+    "foto_arrived": "uploads/arrived/arrived_45_20261030_091500_8f2a1b4c.jpg",
+    "foto_arrived_url": "https://dashboard.momnjo.my.id/dev/api_terapis_v4/uploads/arrived/arrived_45_20261030_091500_8f2a1b4c.jpg"
   }
 }
 ```
@@ -609,6 +631,7 @@ Mengembalikan 1 objek detail job lengkap beserta data rekam medis terakhir.
 #### Error States & Frontend Handling
 | HTTP Status | Kondisi Penyebab | Response JSON Backend | Rekomendasi Handling Frontend |
 |---|---|---|---|
+| **422 Unprocessable Entity** | Parameter `foto_arrived` tidak disertakan atau bernilai kosong saat memanggil action arrived homecare. | `{"status": false, "message": "Foto bukti tiba di lokasi (foto_arrived) wajib diunggah.", "data": null}` | Wajibkan terapis mengambil foto melalui kamera aplikasi sebelum tombol "Konfirmasi Tiba" dapat ditekan. |
 | **400 Bad Request** | ID Job tidak ada atau bukan milik terapis yang login. | `{"status": false, "message": "Job tidak ditemukan atau bukan milik Anda.", "data": null}` | Refresh daftar job; job mungkin sudah dialihkan. |
 | **400 Bad Request** | Mencoba action `arrived` pada layanan `onsite` (room gerai). | `{"status": false, "message": "Status Arrived hanya berlaku untuk layanan Homecare.", "data": null}` | Sembunyikan tombol "Tiba di Lokasi" untuk job onsite (onsite langsung ke Start Treatment). |
 | **400 Bad Request** | Status job saat ini bukan `'Menunggu'` (misal sudah `'Arrived'`, `'Proses'`, atau `'Selesai'`). | `{"status": false, "message": "Job saat ini berstatus '<status>', tidak dapat diset Arrived.", "data": null}` | Sinkronkan status job dari server dan sesuaikan tombol aksi di antarmuka. |
@@ -903,6 +926,7 @@ Tabel berikut merangkum seluruh kemungkinan pesan error pada seluruh endpoint `a
 | `POST /jobs.php` | `400` | `Parameter id_job_status atau job_id wajib diisi.` | Parameter Kurang | Kirim ID job yang dikerjakan |
 | `POST /jobs.php` | `400` | `Action '<action>' tidak dikenal.` | Action Tidak Sah | Gunakan action standar yang didukung |
 | `POST /jobs.php` | `400` | `Job tidak ditemukan atau bukan milik Anda.` | Hak Milik Job | Refresh daftar job |
+| `POST /jobs.php` (arrived) | `422` | `Foto bukti tiba di lokasi (foto_arrived) wajib diunggah.` | Validasi Foto | Wajibkan ambil foto sebelum tiba di lokasi |
 | `POST /jobs.php` (arrived) | `400` | `Status Arrived hanya berlaku untuk layanan Homecare.` | Kategori Layanan | Sembunyikan tombol Arrived untuk onsite |
 | `POST /jobs.php` (arrived) | `400` | `Job saat ini berstatus '<status>', tidak dapat diset Arrived.` | Transisi Status | Sinkronkan state tombol aksi |
 | `POST /jobs.php` (start) | `400` | `Treatment sudah dalam proses berjalan.` | Status Berjalan | Update UI ke mode Proses & aktifkan timer |

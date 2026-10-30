@@ -5,7 +5,7 @@ import 'state/app_state.dart';
 import 'screens/shell/main_navigation_shell.dart';
 import 'screens/auth/login_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -13,6 +13,7 @@ void main() {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+  await AppState.instance.restoreSession();
   runApp(const MomnjoTherapistApp());
 }
 

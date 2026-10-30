@@ -82,7 +82,7 @@ class OverrideDetailModal extends StatelessWidget {
           // Informasi Transaksi
           Text('Informasi Transaksi', style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted)),
           const SizedBox(height: 8),
-          _row('Tanggal Transaksi', '28 Okt 2026, 14.15'),
+          _row('Tanggal Transaksi', Formatters.formatDateTime(item.tanggal)),
           _row('No. Transaksi', item.noTransaksi),
           const SizedBox(height: 12),
           const Divider(),

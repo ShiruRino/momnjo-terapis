@@ -5,6 +5,8 @@ import '../../core/utils/formatters.dart';
 import '../../state/app_state.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/status_chip.dart';
+import '../../widgets/empty_state_view.dart';
+import '../../widgets/skeleton_view.dart';
 import 'modals/override_detail_modal.dart';
 
 class KomisiOverrideScreen extends StatefulWidget {
@@ -16,6 +18,32 @@ class KomisiOverrideScreen extends StatefulWidget {
 
 class _KomisiOverrideScreenState extends State<KomisiOverrideScreen> {
   String _selectedTab = 'Semua'; // 'Semua', 'Masuk', 'Keluar'
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AppState.instance.addListener(_onStateChange);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    AppState.instance.removeListener(_onStateChange);
+    super.dispose();
+  }
+
+  void _onStateChange() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    await AppState.instance.fetchOverride();
+    if (mounted) setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,107 +73,107 @@ class _KomisiOverrideScreenState extends State<KomisiOverrideScreen> {
         title: 'Komisi Override',
         subtitle: 'Rincian sharing komisi paket',
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Month Dropdown
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.surfaceBorder),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.calendar_month_outlined, size: 16, color: AppColors.brand500),
-                  SizedBox(width: 8),
-                  Text('Oktober 2026', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  SizedBox(width: 6),
-                  Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.inkMuted),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Top Stats Row
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryBox(
-                    icon: Icons.arrow_downward,
-                    iconColor: AppColors.feedbackSuccess,
-                    iconBg: AppColors.feedbackSuccessBg,
-                    label: 'Override Masuk',
-                    amount: Formatters.formatRupiah(totalMasuk, showSign: true),
-                    textColor: AppColors.feedbackSuccess,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildSummaryBox(
-                    icon: Icons.arrow_upward,
-                    iconColor: AppColors.feedbackDanger,
-                    iconBg: AppColors.feedbackDangerBg,
-                    label: 'Override Keluar',
-                    amount: Formatters.formatRupiah(-totalKeluar, showSign: true),
-                    textColor: AppColors.feedbackDanger,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildSummaryBox(
-                    icon: Icons.account_balance_wallet_outlined,
-                    iconColor: const Color(0xFFAD3B64),
-                    iconBg: const Color(0xFFF7DFE8),
-                    label: 'Total Bersih',
-                    amount: Formatters.formatRupiah(totalBersih),
-                    textColor: AppColors.inkStrong,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Segmented Pills
-            Container(
-              height: 38,
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F2F6),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: ['Semua', 'Masuk', 'Keluar'].map((tab) {
-                  final isSelected = _selectedTab == tab;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedTab = tab),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.brand500 : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          tab,
-                          style: AppTypography.captionBold.copyWith(
-                            color: isSelected ? Colors.white : AppColors.inkMuted,
+      body: _isLoading || state.isLoadingReport
+          ? const SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: ListTileSkeletonView(itemCount: 4),
+            )
+          : RefreshIndicator(
+              color: AppColors.brand500,
+              onRefresh: _loadData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Stats Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildSummaryBox(
+                            icon: Icons.arrow_downward,
+                            iconColor: AppColors.feedbackSuccess,
+                            iconBg: AppColors.feedbackSuccessBg,
+                            label: 'Override Masuk',
+                            amount: Formatters.formatRupiah(totalMasuk, showSign: true),
+                            textColor: AppColors.feedbackSuccess,
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildSummaryBox(
+                            icon: Icons.arrow_upward,
+                            iconColor: AppColors.feedbackDanger,
+                            iconBg: AppColors.feedbackDangerBg,
+                            label: 'Override Keluar',
+                            amount: Formatters.formatRupiah(-totalKeluar, showSign: true),
+                            textColor: AppColors.feedbackDanger,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildSummaryBox(
+                            icon: Icons.account_balance_wallet_outlined,
+                            iconColor: const Color(0xFFAD3B64),
+                            iconBg: const Color(0xFFF7DFE8),
+                            label: 'Total Bersih',
+                            amount: Formatters.formatRupiah(totalBersih),
+                            textColor: AppColors.inkStrong,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Segmented Pills
+                    Container(
+                      height: 38,
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F2F6),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: ['Semua', 'Masuk', 'Keluar'].map((tab) {
+                          final isSelected = _selectedTab == tab;
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedTab = tab),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isSelected ? AppColors.brand500 : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  tab,
+                                  style: AppTypography.captionBold.copyWith(
+                                    color: isSelected ? Colors.white : AppColors.inkMuted,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-            // Items List
-            ...filtered.map((item) {
+                    // Items List
+                    if (filtered.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: EmptyStateView(
+                          title: 'Belum Ada Data',
+                          description: 'Tidak ada riwayat komisi override pada kategori ini.',
+                          buttonText: 'Segarkan',
+                          onButtonPressed: _loadData,
+                          icon: Icons.account_balance_wallet_outlined,
+                        ),
+                      )
+                    else
+                      ...filtered.map((item) {
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
@@ -225,8 +253,9 @@ class _KomisiOverrideScreenState extends State<KomisiOverrideScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSummaryBox({
     required IconData icon,

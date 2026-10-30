@@ -7,12 +7,14 @@ class AttendanceCard extends StatelessWidget {
   final bool isOnDuty;
   final String? checkInTime;
   final VoidCallback onToggleDuty;
+  final VoidCallback? onViewHistory;
 
   const AttendanceCard({
     super.key,
     required this.isOnDuty,
     this.checkInTime,
     required this.onToggleDuty,
+    this.onViewHistory,
   });
 
   @override
@@ -33,58 +35,77 @@ class AttendanceCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: isOnDuty ? AppColors.feedbackSuccessBg : const Color(0xFFFDEBEC),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.work_outline,
-              color: isOnDuty ? AppColors.feedbackSuccess : AppColors.feedbackDanger,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Status Kehadiran',
-                  style: AppTypography.caption,
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isOnDuty ? AppColors.feedbackSuccess : AppColors.feedbackDanger,
-                        shape: BoxShape.circle,
-                      ),
+            child: InkWell(
+              onTap: onViewHistory,
+              borderRadius: BorderRadius.circular(12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isOnDuty ? AppColors.feedbackSuccessBg : const Color(0xFFFDEBEC),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isOnDuty ? 'On Duty' : 'Off Duty',
-                      style: AppTypography.supportBold.copyWith(
-                        color: isOnDuty ? AppColors.feedbackSuccess : AppColors.feedbackDanger,
-                      ),
+                    child: Icon(
+                      Icons.work_outline,
+                      color: isOnDuty ? AppColors.feedbackSuccess : AppColors.feedbackDanger,
+                      size: 24,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isOnDuty
-                      ? (checkInTime != null ? 'Check In $checkInTime' : 'Check In 08.45 WIB')
-                      : 'Belum check in hari ini',
-                  style: AppTypography.caption.copyWith(color: AppColors.inkMuted),
-                ),
-              ],
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'Status Kehadiran',
+                              style: AppTypography.caption,
+                            ),
+                            if (onViewHistory != null) ...[
+                              const SizedBox(width: 4),
+                              const Icon(Icons.history, size: 12, color: AppColors.brand500),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: isOnDuty ? AppColors.feedbackSuccess : AppColors.feedbackDanger,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isOnDuty ? 'On Duty' : 'Off Duty',
+                              style: AppTypography.supportBold.copyWith(
+                                color: isOnDuty ? AppColors.feedbackSuccess : AppColors.feedbackDanger,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isOnDuty
+                              ? (checkInTime != null ? 'Check In $checkInTime' : 'Aktif Bertugas')
+                              : 'Belum check in hari ini',
+                          style: AppTypography.caption.copyWith(color: AppColors.inkMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          const SizedBox(width: 8),
           SizedBox(
             width: 100,
             child: AppButton(

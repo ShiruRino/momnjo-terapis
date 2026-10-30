@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../data/api/api_exception.dart';
+import '../../state/app_state.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
@@ -40,26 +42,42 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
-    if (oldPass != 'password123' && oldPass != 'admin123') {
-      setState(() => _oldPasswordError = 'Password lama tidak sesuai.');
-      return;
-    }
-
     if (newPass.length < 6) return;
     if (confirmPass != newPass) return;
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 400));
-    setState(() => _isLoading = false);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password berhasil diperbarui.'),
-          backgroundColor: AppColors.feedbackSuccess,
-        ),
+    try {
+      await AppState.instance.updateProfile(
+        passwordLama: oldPass,
+        passwordBaru: newPass,
       );
-      Navigator.pop(context);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password berhasil diperbarui.'),
+            backgroundColor: AppColors.feedbackSuccess,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _oldPasswordError = e.message;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengganti password: $e'),
+            backgroundColor: AppColors.feedbackDanger,
+          ),
+        );
+      }
     }
   }
 
@@ -198,62 +216,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 24),
-
-            // Simulator for edge cases
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSubtle,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.surfaceBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Simulator Error Password (Board 06 & Board 02 Validasi):',
-                    style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      ActionChip(
-                        label: const Text('Wrong Old Password (400)', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () {
-                          setState(() {
-                            _oldPasswordController.text = 'passwordsalah';
-                            _oldPasswordError = 'Password lama tidak sesuai.';
-                          });
-                        },
-                      ),
-                      ActionChip(
-                        label: const Text('New Pass < 6 (422)', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () {
-                          setState(() {
-                            _newPasswordController.text = '123';
-                          });
-                        },
-                      ),
-                      ActionChip(
-                        label: const Text('Password Mismatch', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () {
-                          setState(() {
-                            _newPasswordController.text = 'rahasia123';
-                            _confirmPasswordController.text = 'berbeda123';
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 32),
           ],

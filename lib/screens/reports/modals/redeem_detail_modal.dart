@@ -93,7 +93,7 @@ class RedeemDetailModal extends StatelessWidget {
           Text('Informasi Transaksi', style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted)),
           const SizedBox(height: 8),
           _row('No. Transaksi', item.noTransaksi),
-          _row('Tanggal Transaksi', '28 Okt 2026, 14.15'),
+          _row('Tanggal Transaksi', Formatters.formatDateTime(item.tanggal)),
           _row('Kategori', item.isRedeem ? 'Redeem Paket' : 'Treatment Reguler'),
           const SizedBox(height: 12),
 
@@ -102,9 +102,12 @@ class RedeemDetailModal extends StatelessWidget {
             const Divider(),
             Text('Informasi Paket', style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted)),
             const SizedBox(height: 8),
-            _row('Nama Paket', item.namaPaket ?? 'Paket Sehat Cantik 4 Sesi'),
-            _row('ID Paket', item.idPaket ?? 'PKT-20261015-0003'),
-            _row('Dijual oleh', item.dijualOleh ?? 'Dewi Sartika (Terapis)'),
+            if (item.namaPaket != null && item.namaPaket!.isNotEmpty)
+              _row('Nama Paket', item.namaPaket!),
+            if (item.idPaket != null && item.idPaket!.isNotEmpty)
+              _row('ID Paket', item.idPaket!),
+            if (item.dijualOleh != null && item.dijualOleh!.isNotEmpty)
+              _row('Dijual oleh', item.dijualOleh!),
             const SizedBox(height: 12),
           ],
 

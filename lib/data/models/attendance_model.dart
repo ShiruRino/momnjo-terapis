@@ -22,6 +22,41 @@ class AttendanceRecord {
     this.isAutoCheckout = false,
   });
 
+  factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
+    DateTime parsedWaktu;
+    try {
+      parsedWaktu = DateTime.parse(json['waktu']?.toString() ?? DateTime.now().toIso8601String());
+    } catch (_) {
+      parsedWaktu = DateTime.now();
+    }
+
+    final catatanStr = json['catatan']?.toString();
+    final isAuto = catatanStr != null && catatanStr.contains('Human Error');
+
+    return AttendanceRecord(
+      idAbsensi: json['id_absensi'] is int
+          ? json['id_absensi']
+          : int.tryParse(json['id_absensi']?.toString() ?? '0') ?? 0,
+      usernameTerapis: json['username_terapis']?.toString() ?? '',
+      action: json['action']?.toString() ?? 'check_in',
+      waktu: parsedWaktu,
+      lokasi: json['lokasi']?.toString() ?? '',
+      catatan: catatanStr,
+      isAutoCheckout: isAuto,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id_absensi': idAbsensi,
+      'username_terapis': usernameTerapis,
+      'action': action,
+      'waktu': waktu.toIso8601String(),
+      'lokasi': lokasi,
+      'catatan': catatan,
+    };
+  }
+
   bool get isCheckIn => action == 'check_in';
 }
 

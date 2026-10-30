@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../state/app_state.dart';
 import '../home/beranda_screen.dart';
 import '../jobs/job_list_screen.dart';
 import '../reports/report_screen.dart';
 import '../profile/profile_screen.dart';
-import '../showcase/showcase_matrix_screen.dart';
 
 class MainNavigationShell extends StatefulWidget {
   final int initialIndex;
@@ -28,13 +28,29 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
+    _currentIndex = widget.initialIndex != 0 ? widget.initialIndex : AppState.instance.selectedNavIndex;
+    if (widget.initialIndex != 0) {
+      AppState.instance.switchNavigation(widget.initialIndex);
+    }
+    AppState.instance.addListener(_onStateChange);
+  }
+
+  @override
+  void dispose() {
+    AppState.instance.removeListener(_onStateChange);
+    super.dispose();
+  }
+
+  void _onStateChange() {
+    if (mounted && _currentIndex != AppState.instance.selectedNavIndex) {
+      setState(() {
+        _currentIndex = AppState.instance.selectedNavIndex;
+      });
+    }
   }
 
   void switchTab(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+    AppState.instance.switchNavigation(index);
   }
 
   @override
@@ -60,7 +76,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
+          onTap: (index) => AppState.instance.switchNavigation(index),
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
@@ -84,23 +100,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'showcase_fab',
-        backgroundColor: AppColors.brand500,
-        foregroundColor: Colors.white,
-        elevation: 3,
-        icon: const Icon(Icons.grid_view_rounded, size: 18),
-        label: const Text(
-          'Semua Layar & Kasus',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ShowcaseMatrixScreen()),
-          );
-        },
       ),
     );
   }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/utils/formatters.dart';
 import '../../data/models/job_model.dart';
+import '../../data/api/api_exception.dart';
 import '../../state/app_state.dart';
 import '../../widgets/app_header.dart';
 import '../../widgets/app_button.dart';
@@ -10,6 +12,7 @@ import '../../widgets/feedback_banner.dart';
 import '../../widgets/treatment_timer_widget.dart';
 import '../../widgets/custom_bottom_sheets.dart';
 import '../../widgets/custom_dialogs.dart';
+import '../../widgets/skeleton_view.dart';
 import 'widgets/treatment_stepper.dart';
 import 'homecare_arrival_screen.dart';
 import 'medical_assessment_screen.dart';
@@ -27,10 +30,6 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   String? _bannerMessage;
   FeedbackBannerType _bannerType = FeedbackBannerType.info;
 
-  // Error simulation states
-  bool _isNetworkError = false;
-  bool _isServerError = false;
-
   @override
   void initState() {
     super.initState();
@@ -47,7 +46,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     if (mounted) setState(() {});
   }
 
-  void _handleStart() {
+  void _handleStart() async {
     final state = AppState.instance;
     final job = state.getJobById(widget.jobId);
     if (job == null) return;
@@ -59,16 +58,28 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       });
       return;
     }
-    state.startTreatment(widget.jobId);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Treatment dimulai. Timer aktif.'),
-        backgroundColor: AppColors.feedbackSuccess,
-      ),
-    );
+
+    try {
+      await state.startTreatment(widget.jobId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Treatment dimulai. Timer aktif.'),
+            backgroundColor: AppColors.feedbackSuccess,
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _bannerMessage = e.message;
+          _bannerType = FeedbackBannerType.danger;
+        });
+      }
+    }
   }
 
-  void _handlePause() {
+  void _handlePause() async {
     final state = AppState.instance;
     final job = state.getJobById(widget.jobId);
     if (job == null) return;
@@ -80,16 +91,28 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       });
       return;
     }
-    state.pauseTreatment(widget.jobId);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Timer berhasil di-pause.'),
-        backgroundColor: AppColors.feedbackWarning,
-      ),
-    );
+
+    try {
+      await state.pauseTreatment(widget.jobId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Timer berhasil di-pause.'),
+            backgroundColor: AppColors.feedbackWarning,
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _bannerMessage = e.message;
+          _bannerType = FeedbackBannerType.danger;
+        });
+      }
+    }
   }
 
-  void _handleResume() {
+  void _handleResume() async {
     final state = AppState.instance;
     final job = state.getJobById(widget.jobId);
     if (job == null) return;
@@ -101,13 +124,25 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       });
       return;
     }
-    state.resumeTreatment(widget.jobId);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Timer berhasil di-resume.'),
-        backgroundColor: AppColors.feedbackSuccess,
-      ),
-    );
+
+    try {
+      await state.resumeTreatment(widget.jobId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Timer berhasil di-resume.'),
+            backgroundColor: AppColors.feedbackSuccess,
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _bannerMessage = e.message;
+          _bannerType = FeedbackBannerType.danger;
+        });
+      }
+    }
   }
 
   void _handleComplete() {
@@ -125,102 +160,46 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
     CustomBottomSheets.showFinishTreatmentSheet(
       context,
-      customerName: job.customer.fullname,
-      treatmentName: job.item.productName,
+      customerName: job.customer.fullname.isNotEmpty ? job.customer.fullname : (job.isOnsite ? 'Pelanggan Onsite' : 'Pelanggan Homecare'),
+      treatmentName: job.item.productName.isNotEmpty ? job.item.productName : '-',
       isOnsite: job.isOnsite,
       totalDurationSeconds: job.timer.elapsedSeconds,
-      onConfirm: () {
-        state.completeTreatment(widget.jobId);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Treatment berhasil diselesaikan.'),
-            backgroundColor: AppColors.feedbackSuccess,
-          ),
-        );
+      durasiMenit: job.durasiStandar > 0 ? job.durasiStandar : null,
+      onConfirm: () async {
+        try {
+          await state.completeTreatment(widget.jobId);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Treatment berhasil diselesaikan.'),
+                backgroundColor: AppColors.feedbackSuccess,
+              ),
+            );
+          }
+        } on ApiException catch (e) {
+          if (mounted) {
+            setState(() {
+              _bannerMessage = e.message;
+              _bannerType = FeedbackBannerType.danger;
+            });
+          }
+        }
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isNetworkError) {
-      return Scaffold(
-        appBar: const AppHeader(title: 'Detail Pekerjaan'),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.wifi_off_rounded, size: 64, color: AppColors.brand500),
-                const SizedBox(height: 16),
-                const Text('Koneksi Internet Bermasalah', style: AppTypography.h2),
-                const SizedBox(height: 8),
-                const Text(
-                  'Silakan periksa jaringan Anda.\nPastikan perangkat Anda terhubung ke internet dan coba lagi.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.support,
-                ),
-                const SizedBox(height: 24),
-                AppButton(
-                  text: 'Coba Lagi',
-                  icon: const Icon(Icons.refresh, color: Colors.white, size: 18),
-                  onPressed: () => setState(() => _isNetworkError = false),
-                ),
-                const SizedBox(height: 16),
-                const FeedbackBanner(
-                  message: 'Data yang ditampilkan mungkin tidak terbaru.',
-                  type: FeedbackBannerType.info,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_isServerError) {
-      return Scaffold(
-        appBar: const AppHeader(title: 'Detail Pekerjaan'),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.dns_outlined, size: 64, color: AppColors.feedbackDanger),
-                const SizedBox(height: 16),
-                const Text('Server Sedang Mengalami Gangguan', style: AppTypography.h2),
-                const SizedBox(height: 8),
-                const Text(
-                  'Terjadi kendala pada server.\nSilakan coba lagi beberapa saat atau hubungi admin.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.support,
-                ),
-                const SizedBox(height: 24),
-                AppButton(
-                  text: 'Coba Lagi',
-                  icon: const Icon(Icons.refresh, color: Colors.white, size: 18),
-                  onPressed: () => setState(() => _isServerError = false),
-                ),
-                const SizedBox(height: 10),
-                AppButton(
-                  text: 'Kembali',
-                  variant: AppButtonVariant.secondary,
-                  onPressed: () => setState(() => _isServerError = false),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     final job = AppState.instance.getJobById(widget.jobId);
     if (job == null) {
-      return Scaffold(
-        appBar: const AppHeader(title: 'Detail Pekerjaan'),
-        body: const Center(child: Text('Pekerjaan tidak ditemukan')),
+      return const Scaffold(
+        backgroundColor: AppColors.surfaceCanvas,
+        appBar: AppHeader(title: 'Detail Pekerjaan'),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: JobDetailSkeletonView(),
+          ),
+        ),
       );
     }
 
@@ -314,9 +293,11 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
             // Completed notice if Selesai
             if (job.statusLayanan == StatusLayanan.selesai) ...[
-              const FeedbackBanner(
+              FeedbackBanner(
                 title: 'Treatment sudah selesai.',
-                message: 'Pekerjaan ini telah diselesaikan pada 28 Okt 2026, 15.30 WIB.',
+                message: job.waktuSelesai != null
+                    ? 'Pekerjaan ini telah diselesaikan pada ${Formatters.formatDate(job.waktuSelesai!)}, ${job.waktuSelesai!.hour.toString().padLeft(2, '0')}.${job.waktuSelesai!.minute.toString().padLeft(2, '0')} WIB.'
+                    : 'Pekerjaan ini telah diselesaikan.',
                 type: FeedbackBannerType.success,
               ),
             ],
@@ -350,7 +331,9 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   elapsedSeconds: job.timer.elapsedSeconds,
                   remainingSeconds: job.timer.remainingSeconds,
                   isPaused: job.isPaused,
-                  pausedSince: 'Dijeda sejak 11.20 WIB',
+                  pausedSince: job.pausedAt != null
+                      ? 'Dijeda sejak ${job.pausedAt!.hour.toString().padLeft(2, '0')}.${job.pausedAt!.minute.toString().padLeft(2, '0')} WIB'
+                      : null,
                 ),
               ),
               const SizedBox(height: 12),
@@ -368,39 +351,78 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.person_outline, size: 18, color: AppColors.brand500),
-                      const SizedBox(width: 8),
-                      Text('Informasi Pelanggan', style: AppTypography.supportBold.copyWith(fontSize: 14)),
+                      Row(
+                        children: [
+                          const Icon(Icons.person_outline, size: 18, color: AppColors.brand500),
+                          const SizedBox(width: 8),
+                          Text('Informasi Pelanggan', style: AppTypography.supportBold.copyWith(fontSize: 14)),
+                        ],
+                      ),
+                      if (job.isOnsite && job.customer.ruangan != null && job.customer.ruangan!.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.brand100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            job.customer.ruangan!,
+                            style: AppTypography.captionBold.copyWith(
+                              color: AppColors.brand500,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(job.customer.fullname, style: AppTypography.supportBold),
-                          const SizedBox(height: 2),
-                          Text(job.customer.phone, style: AppTypography.caption),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              job.customer.fullname.isNotEmpty
+                                  ? job.customer.fullname
+                                  : (job.isOnsite ? 'Pelanggan Onsite' : 'Pelanggan Homecare'),
+                              style: AppTypography.supportBold,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              job.customer.phone.isNotEmpty
+                                  ? job.customer.phone
+                                  : (job.isOnsite
+                                      ? (job.customer.ruangan != null && job.customer.ruangan!.isNotEmpty
+                                          ? 'Ruangan: ${job.customer.ruangan}'
+                                          : 'Layanan Onsite Gerai')
+                                      : '-'),
+                              style: AppTypography.caption,
+                            ),
+                          ],
+                        ),
                       ),
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: AppColors.brand100,
-                            child: const Icon(Icons.phone_outlined, size: 16, color: AppColors.brand500),
-                          ),
-                          const SizedBox(width: 8),
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: const Color(0xFFE8F6F0),
-                            child: const Icon(Icons.chat_bubble_outline, size: 16, color: AppColors.feedbackSuccess),
-                          ),
-                        ],
-                      ),
+                      if (job.customer.phone.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: AppColors.brand100,
+                              child: const Icon(Icons.phone_outlined, size: 16, color: AppColors.brand500),
+                            ),
+                            const SizedBox(width: 8),
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: const Color(0xFFE8F6F0),
+                              child: const Icon(Icons.chat_bubble_outline, size: 16, color: AppColors.feedbackSuccess),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -408,35 +430,35 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Card: Lokasi / Alamat
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.surfaceBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            job.isHomecare ? Icons.home_outlined : Icons.storefront_outlined,
-                            size: 18,
-                            color: AppColors.brand500,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            job.isHomecare ? 'Alamat Homecare' : 'Lokasi Onsite',
-                            style: AppTypography.supportBold.copyWith(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                      if (job.isHomecare) ...[
+            // Card: Lokasi / Alamat (Hanya untuk Homecare, Onsite tidak memerlukan widget ini)
+            if (job.isHomecare) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.surfaceBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.home_outlined,
+                              size: 18,
+                              color: AppColors.brand500,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Alamat Homecare',
+                              style: AppTypography.supportBold.copyWith(fontSize: 14),
+                            ),
+                          ],
+                        ),
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.brand500,
@@ -450,21 +472,24 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                           label: const Text('Buka Map', style: TextStyle(fontSize: 11)),
                         ),
                       ],
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(job.customer.alamatDomisili, style: AppTypography.support.copyWith(fontSize: 13)),
-                  if (job.customer.catatanAlamat != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Catatan: ${job.customer.catatanAlamat}',
-                      style: AppTypography.caption.copyWith(color: AppColors.inkMuted),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      job.customer.alamatDomisili.isNotEmpty ? job.customer.alamatDomisili : '-',
+                      style: AppTypography.support.copyWith(fontSize: 13),
+                    ),
+                    if (job.customer.catatanAlamat != null && job.customer.catatanAlamat!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Catatan: ${job.customer.catatanAlamat}',
+                        style: AppTypography.caption.copyWith(color: AppColors.inkMuted),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
+            ],
 
             // Card: Informasi Treatment
             Container(
@@ -485,13 +510,18 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildDetailRow('Nama Treatment', job.item.productName),
-                  const SizedBox(height: 8),
-                  _buildDetailRow('Durasi Standar', '${job.durasiStandar} menit'),
+                  _buildDetailRow('Nama Treatment', job.item.productName.isNotEmpty ? job.item.productName : '-', isLong: true),
+                  const SizedBox(height: 10),
+                  _buildDetailRow('Durasi Standar', job.durasiStandar > 0 ? '${job.durasiStandar} menit' : '-'),
                   const SizedBox(height: 8),
                   _buildDetailRow('Kategori', job.isHomecare ? 'Homecare' : 'Onsite'),
                   const SizedBox(height: 8),
-                  _buildDetailRow('Jadwal', '30 Okt 2026, 10.00 WIB'),
+                  _buildDetailRow(
+                    'Jadwal',
+                    job.waktuJadwal != null
+                        ? '${Formatters.formatDate(job.waktuJadwal!)}, ${job.waktuJadwal!.hour.toString().padLeft(2, '0')}.${job.waktuJadwal!.minute.toString().padLeft(2, '0')} WIB'
+                        : '-',
+                  ),
                   const SizedBox(height: 8),
                   _buildDetailRow('Status', job.statusLayanan.name.toUpperCase()),
                 ],
@@ -554,97 +584,40 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
             // Action Buttons Section
             _buildActionButtons(job),
-            const SizedBox(height: 24),
-
-            // Error & Transition Testing Simulator Box
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceSubtle,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.surfaceBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Simulator Edge Cases & Error API (Mockup 01-11):',
-                    style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      ActionChip(
-                        label: const Text('Already Running (400)', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () {
-                          setState(() {
-                            _bannerMessage = 'Treatment sudah dalam proses berjalan. Timer telah disesuaikan dengan data terbaru.';
-                            _bannerType = FeedbackBannerType.danger;
-                          });
-                        },
-                      ),
-                      ActionChip(
-                        label: const Text('Pause Not Allowed (400)', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () {
-                          setState(() {
-                            _bannerMessage = 'Hanya treatment yang sedang berjalan (Proses) yang dapat di-pause. Saat ini pekerjaan masih dalam status Menunggu.';
-                            _bannerType = FeedbackBannerType.warning;
-                          });
-                        },
-                      ),
-                      ActionChip(
-                        label: const Text('Job Not Found / Reassigned (404)', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () {
-                          CustomDialogs.showJobNotFoundDialog(
-                            context,
-                            onBackToJobs: () => Navigator.pop(context),
-                          );
-                        },
-                      ),
-                      ActionChip(
-                        label: const Text('Reassign Conflict (409)', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () {
-                          CustomDialogs.showReassignConflictDialog(
-                            context,
-                            currentTerapis: 'dewi.sartika',
-                            newTerapis: 'siti.nurhaliza',
-                          );
-                        },
-                      ),
-                      ActionChip(
-                        label: const Text('Simulate Network Error', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () => setState(() => _isNetworkError = true),
-                      ),
-                      ActionChip(
-                        label: const Text('Simulate 500 Server Error', style: TextStyle(fontSize: 11)),
-                        backgroundColor: Colors.white,
-                        onPressed: () => setState(() => _isServerError = true),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, {bool isLong = false}) {
+    if (isLong) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTypography.caption.copyWith(color: AppColors.inkMuted)),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: AppTypography.supportBold.copyWith(fontSize: 14, color: AppColors.inkStrong),
+          ),
+        ],
+      );
+    }
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: AppTypography.caption.copyWith(color: AppColors.inkMuted)),
-        Text(value, style: AppTypography.supportMedium.copyWith(fontSize: 13)),
+        const SizedBox(width: 16),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: AppTypography.supportMedium.copyWith(fontSize: 13),
+          ),
+        ),
       ],
     );
   }
