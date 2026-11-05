@@ -116,12 +116,44 @@ class StatusChip extends StatelessWidget {
   }
 
   factory StatusChip.treatmentType({required String type}) {
-    final isReguler = type.toLowerCase() == 'reguler';
-    return StatusChip(
-      label: isReguler ? 'Treatment Reguler' : 'Redeem Paket',
-      backgroundColor: isReguler ? const Color(0xFFFDEFF4) : const Color(0xFFFFF3E6),
-      textColor: isReguler ? AppColors.brand500 : const Color(0xFFC9600E),
-    );
+    final lower = type.toLowerCase().trim();
+
+    if (lower.contains('override')) {
+      return const StatusChip(
+        label: 'Redeem Override',
+        backgroundColor: Color(0xFFEDE9FE), // Soft Purple
+        textColor: Color(0xFF6D28D9),
+      );
+    } else if (lower.contains('paket lama') || lower.contains('old package')) {
+      return const StatusChip(
+        label: 'Paket Lama',
+        backgroundColor: Color(0xFFE2E8F0), // Soft Slate
+        textColor: Color(0xFF475569),
+      );
+    } else if (lower.contains('redeem') || lower.contains('paket') || lower.contains('package')) {
+      return const StatusChip(
+        label: 'Redeem Paket',
+        backgroundColor: Color(0xFFFFF3E6), // Soft Amber/Orange
+        textColor: Color(0xFFC9600E),
+      );
+    } else if (lower.contains('reguler') ||
+        lower.contains('regular') ||
+        lower.contains('normal') ||
+        lower.contains('treatment') ||
+        lower.contains('single') ||
+        lower.contains('layanan')) {
+      return const StatusChip(
+        label: 'Treatment Reguler',
+        backgroundColor: Color(0xFFFDEFF4), // Brand Pink
+        textColor: AppColors.brand500,
+      );
+    } else {
+      return StatusChip(
+        label: type.isNotEmpty ? type : 'Treatment Reguler',
+        backgroundColor: const Color(0xFFF0F2F6),
+        textColor: AppColors.inkStrong,
+      );
+    }
   }
 
   factory StatusChip.override({required bool isMasuk}) {

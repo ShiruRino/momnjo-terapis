@@ -164,10 +164,34 @@ class PengerjaanItem {
       return double.tryParse(val?.toString() ?? '$def') ?? def;
     }
 
-    final isRedeem = json['is_redeem'] == true ||
-        (json['keterangan']?.toString().toLowerCase().contains('redeem') ?? false) ||
-        (json['kategori_tipe']?.toString().toLowerCase() == 'redeem');
-    final kat = isRedeem ? 'redeem' : (json['kategori_tipe']?.toString() ?? json['keterangan']?.toString() ?? 'reguler');
+    final rawKet = (json['keterangan'] ??
+            json['kategori_tipe'] ??
+            json['tipe'] ??
+            json['kategori'] ??
+            json['status_item'])
+        ?.toString()
+        .trim() ?? '';
+    final rawKetLower = rawKet.toLowerCase();
+
+    String kat;
+    if (rawKetLower.contains('override')) {
+      kat = 'Redeem Override';
+    } else if (rawKetLower.contains('paket lama') || rawKetLower.contains('old package')) {
+      kat = 'Paket Lama';
+    } else if (rawKetLower.contains('redeem') || json['is_redeem'] == true) {
+      kat = 'Redeem Paket';
+    } else if (rawKetLower.contains('normal') ||
+        rawKetLower.contains('reguler') ||
+        rawKetLower.contains('regular') ||
+        rawKetLower.contains('treatment') ||
+        rawKetLower.contains('single') ||
+        rawKetLower.contains('layanan')) {
+      kat = 'Treatment Reguler';
+    } else if (rawKet.isNotEmpty) {
+      kat = rawKet;
+    } else {
+      kat = (json['is_redeem'] == true) ? 'Redeem Paket' : 'Treatment Reguler';
+    }
 
     return PengerjaanItem(
       id: json['no'] is int ? json['no'] : (json['id'] is int ? json['id'] : int.tryParse(json['no']?.toString() ?? json['id']?.toString() ?? '1') ?? 1),
@@ -186,7 +210,9 @@ class PengerjaanItem {
     );
   }
 
-  bool get isRedeem => kategoriTipe.toLowerCase() == 'redeem';
+  bool get isRedeem =>
+      kategoriTipe.toLowerCase().contains('redeem') ||
+      kategoriTipe.toLowerCase().contains('paket');
 }
 
 class OverrideItem {

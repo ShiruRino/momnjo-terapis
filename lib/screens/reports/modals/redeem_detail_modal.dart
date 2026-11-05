@@ -94,11 +94,11 @@ class RedeemDetailModal extends StatelessWidget {
           const SizedBox(height: 8),
           _row('No. Transaksi', item.noTransaksi),
           _row('Tanggal Transaksi', Formatters.formatDateTime(item.tanggal)),
-          _row('Kategori', item.isRedeem ? 'Redeem Paket' : 'Treatment Reguler'),
+          _row('Kategori', item.kategoriTipe),
           const SizedBox(height: 12),
 
           // Informasi Paket if Redeem
-          if (item.isRedeem) ...[
+          if (item.isRedeem && ((item.namaPaket != null && item.namaPaket!.isNotEmpty) || (item.dijualOleh != null && item.dijualOleh!.isNotEmpty))) ...[
             const Divider(),
             Text('Informasi Paket', style: AppTypography.captionBold.copyWith(color: AppColors.inkMuted)),
             const SizedBox(height: 8),

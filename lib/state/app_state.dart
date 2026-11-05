@@ -391,6 +391,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setPengerjaanList(List<PengerjaanItem> list) {
+    _pengerjaanList = List.from(list);
+    notifyListeners();
+  }
+
   // Fetch Jobs from Live API
   Future<void> fetchJobs() async {
     _isLoadingJobs = true;

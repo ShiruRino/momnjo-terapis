@@ -19,6 +19,7 @@ class PengerjaanListScreen extends StatefulWidget {
 
 class _PengerjaanListScreenState extends State<PengerjaanListScreen> {
   bool _isLoading = false;
+  String _selectedCategory = 'Semua'; // 'Semua', 'Reguler', 'Redeem'
 
   @override
   void initState() {
@@ -51,6 +52,14 @@ class _PengerjaanListScreenState extends State<PengerjaanListScreen> {
     final items = state.pengerjaanList;
     final totalNominal = items.fold<double>(0.0, (sum, i) => sum + i.totalNominal);
     final totalQty = items.fold<int>(0, (sum, i) => sum + i.jumlah);
+    final filteredItems = items.where((item) {
+      if (_selectedCategory == 'Reguler') {
+        return !item.isRedeem;
+      } else if (_selectedCategory == 'Redeem') {
+        return item.isRedeem;
+      }
+      return true;
+    }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.surfaceCanvas,
@@ -111,10 +120,72 @@ class _PengerjaanListScreenState extends State<PengerjaanListScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
+
+                        // Interactive Filter Chips
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              FilterChip(
+                                label: Text('Semua (${items.length})', style: const TextStyle(fontSize: 12)),
+                                selected: _selectedCategory == 'Semua',
+                                selectedColor: AppColors.brand100,
+                                checkmarkColor: AppColors.brand500,
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(color: AppColors.surfaceBorder),
+                                onSelected: (_) => setState(() => _selectedCategory = 'Semua'),
+                              ),
+                              const SizedBox(width: 8),
+                              FilterChip(
+                                label: Text(
+                                  'Reguler (${items.where((i) => !i.isRedeem).length})',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                selected: _selectedCategory == 'Reguler',
+                                selectedColor: const Color(0xFFFDEFF4),
+                                checkmarkColor: AppColors.brand500,
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(color: AppColors.surfaceBorder),
+                                onSelected: (_) => setState(() => _selectedCategory = 'Reguler'),
+                              ),
+                              const SizedBox(width: 8),
+                              FilterChip(
+                                label: Text(
+                                  'Redeem (${items.where((i) => i.isRedeem).length})',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                selected: _selectedCategory == 'Redeem',
+                                selectedColor: const Color(0xFFFFF3E6),
+                                checkmarkColor: const Color(0xFFC9600E),
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(color: AppColors.surfaceBorder),
+                                onSelected: (_) => setState(() => _selectedCategory = 'Redeem'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
 
                         // Items List
-                        ...items.map((item) {
+                        if (filteredItems.isEmpty) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.surfaceBorder),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Tidak ada treatment kategori $_selectedCategory pada periode ini.',
+                                style: AppTypography.caption.copyWith(color: AppColors.inkMuted),
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          ...filteredItems.map((item) {
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             decoration: BoxDecoration(
@@ -174,10 +245,12 @@ class _PengerjaanListScreenState extends State<PengerjaanListScreen> {
                                       _row('Jumlah', '${item.jumlah}'),
                                       _row('Nominal per item', Formatters.formatRupiah(item.nominalPerItem)),
                                       _row('Total Nominal', Formatters.formatRupiah(item.totalNominal), isBold: true),
-                                      if (item.isRedeem) ...[
+                                      if (item.isRedeem && ((item.namaPaket != null && item.namaPaket!.isNotEmpty) || (item.dijualOleh != null && item.dijualOleh!.isNotEmpty))) ...[
                                         const SizedBox(height: 8),
-                                        _row('Nama Paket', item.namaPaket ?? 'Paket Sehat Cantik 4 Sesi'),
-                                        _row('Dijual oleh', item.dijualOleh ?? 'Dewi Sartika'),
+                                        if (item.namaPaket != null && item.namaPaket!.isNotEmpty)
+                                          _row('Nama Paket', item.namaPaket!),
+                                        if (item.dijualOleh != null && item.dijualOleh!.isNotEmpty)
+                                          _row('Dijual oleh', item.dijualOleh!),
                                       ],
                                     ],
                                   ),
@@ -186,14 +259,19 @@ class _PengerjaanListScreenState extends State<PengerjaanListScreen> {
                             ),
                           );
                         }),
+                        ],
                         const SizedBox(height: 8),
 
                         // Callout info
-                        const FeedbackBanner(
-                          message: 'Nominal redeem mengikuti perhitungan paket.',
-                          type: FeedbackBannerType.info,
-                        ),
-                        const SizedBox(height: 24),
+                        if (items.any((i) => i.isRedeem)) ...[
+                          const FeedbackBanner(
+                            message: 'Nominal redeem mengikuti perhitungan paket.',
+                            type: FeedbackBannerType.info,
+                          ),
+                          const SizedBox(height: 24),
+                        ] else ...[
+                          const SizedBox(height: 24),
+                        ],
                       ],
                     ),
                   ),

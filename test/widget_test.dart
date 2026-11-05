@@ -8,6 +8,9 @@ import 'package:terapis/screens/jobs/job_list_screen.dart';
 import 'package:terapis/screens/jobs/job_detail_screen.dart';
 import 'package:terapis/screens/profile/branch_contact_screen.dart';
 import 'package:terapis/screens/reports/report_screen.dart';
+import 'package:terapis/screens/reports/pengerjaan_list_screen.dart';
+import 'package:terapis/data/models/report_model.dart';
+import 'package:terapis/widgets/status_chip.dart';
 import 'package:terapis/state/app_state.dart';
 import 'package:terapis/data/models/job_model.dart';
 
@@ -256,5 +259,90 @@ void main() {
 
     // 4. Verify treatment name
     expect(find.text('Baby Massage & Hydrotherapy'), findsWidgets);
+  });
+
+  testWidgets('PengerjaanListScreen displays dynamic treatment badges (Reguler vs Redeem)', (tester) async {
+    final state = AppState.instance;
+    final itemReguler = PengerjaanItem.fromJson({
+      'no': 1,
+      'tgl': '2026-10-30',
+      'id_trx': 'TRX-REG-01',
+      'nama_cust': 'Ibu Aurelia',
+      'treatment': 'Mom Massage & Scrub 90 Menit',
+      'qty': 1,
+      'nominal_satuan': 250000,
+      'total_nominal': 250000,
+      'keterangan': 'Normal',
+      'is_redeem': false,
+    });
+
+    final itemRedeem = PengerjaanItem.fromJson({
+      'no': 2,
+      'tgl': '2026-10-30',
+      'id_trx': 'TRX-RED-02',
+      'nama_cust': 'Ibu Dewi',
+      'treatment': 'Postnatal Care',
+      'qty': 1,
+      'nominal_satuan': 150000,
+      'total_nominal': 150000,
+      'keterangan': 'Redeem',
+      'is_redeem': true,
+      'package_custom_name': 'Paket Pemulihan Ibu 5 Sesi',
+    });
+
+    final itemOverride = PengerjaanItem.fromJson({
+      'no': 3,
+      'tgl': '2026-10-30',
+      'id_trx': 'TRX-OVR-03',
+      'nama_cust': 'Ibu Kartika',
+      'treatment': 'Baby Spa',
+      'qty': 1,
+      'nominal_satuan': 180000,
+      'total_nominal': 180000,
+      'keterangan': 'Redeem Override',
+      'is_redeem': true,
+    });
+
+    expect(itemReguler.isRedeem, isFalse);
+    expect(itemReguler.kategoriTipe, 'Treatment Reguler');
+    expect(itemRedeem.isRedeem, isTrue);
+    expect(itemRedeem.kategoriTipe, 'Redeem Paket');
+    expect(itemOverride.isRedeem, isTrue);
+    expect(itemOverride.kategoriTipe, 'Redeem Override');
+
+    state.setPengerjaanList([itemReguler, itemRedeem, itemOverride]);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: PengerjaanListScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify all 3 dynamic badges render distinctly
+    expect(find.text('Treatment Reguler'), findsOneWidget);
+    expect(find.text('Redeem Paket'), findsOneWidget);
+    expect(find.text('Redeem Override'), findsOneWidget);
+
+    // Test filter chips
+    expect(find.text('Semua (3)'), findsOneWidget);
+    expect(find.text('Reguler (1)'), findsOneWidget);
+    expect(find.text('Redeem (2)'), findsOneWidget);
+
+    // Tap Reguler chip
+    await tester.tap(find.text('Reguler (1)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ibu Aurelia'), findsOneWidget);
+    expect(find.text('Ibu Dewi'), findsNothing);
+    expect(find.text('Ibu Kartika'), findsNothing);
+
+    // Tap Redeem chip
+    await tester.tap(find.text('Redeem (2)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ibu Aurelia'), findsNothing);
+    expect(find.text('Ibu Dewi'), findsOneWidget);
+    expect(find.text('Ibu Kartika'), findsOneWidget);
   });
 }
